@@ -1,0 +1,156 @@
+/* Custom styles for DPL-Monitor Pro */
+
+/* Print styles for official documents */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #official-print-area, #official-print-area * {
+        visibility: visible;
+    }
+    #official-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        margin: 0;
+    }
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* Custom scrollbar for better visual depth */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f5f9;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Smooth transitions */
+* {
+    transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 150ms;
+}
+
+/* Focus ring improvements */
+*:focus-visible {
+    outline: 2px solid #005E6A;
+    outline-offset: 2px;
+}
+
+/* Table row hover effect */
+tbody tr:hover {
+    background-color: #f8fafc;
+}
+
+/* Card hover effect */
+.hover-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* Custom utility classes */
+.bg-teal-55 {
+    background-color: #ccfbf1;
+}
+
+.text-teal-850 {
+    color: #115e59;
+}
+
+/* Modal animation */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+#confirmation-modal:not(.hidden) .bg-white {
+    animation: modalFadeIn 0.2s ease-out;
+}
+
+/* Toast animation */
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Loading spinner */
+.spinner {
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #005E6A;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Responsive table improvements */
+@media (max-width: 768px) {
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    table {
+        min-width: 800px;
+    }
+}
+
+/* Print-specific improvements */
+@media print {
+    @page {
+        size: A4;
+        margin: 1.5cm;
+    }
+    
+    body {
+        background: white;
+    }
+    
+    #official-print-area {
+        font-size: 10pt;
+        line-height: 1.4;
+    }
+    
+    #official-print-area table {
+        page-break-inside: avoid;
+    }
+    
+    #official-print-area tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+    }
+}

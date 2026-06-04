@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DPL-Monitor Pro - BNI Kantor Wilayah & Cabang</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bni: {
+                            navy: '#004D56',
+                            teal: '#005E6A',
+                            lightTeal: '#E6F5F7',
+                            orange: '#F15A24',
+                            darkTeal: '#003B42'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col font-sans text-slate-800">
+
+    <!-- Toast Notification Box -->
+    <div id="toast" class="fixed top-4 right-4 z-50 flex items-center gap-3 p-4 rounded-xl shadow-lg border text-white transition-all duration-300 transform translate-y-[-150%] opacity-0">
+        <span id="toast-icon"></span>
+        <span id="toast-message" class="font-medium text-sm"></span>
+    </div>
+
+    <!-- Header Banner BNI Standard -->
+    <header class="bg-gradient-to-r from-bni-navy to-bni-teal text-white shadow-md border-b-4 border-bni-orange no-print">
+        <div class="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-xl text-bni-teal shadow-inner border border-teal-100">
+                    BNI
+                </div>
+                <div>
+                    <h1 class="text-xl sm:text-2xl font-bold tracking-tight">DPL-Monitor Pro</h1>
+                    <p class="text-teal-100 text-xs sm:text-sm mt-0.5">Monitoring & Konfirmasi Aset Dalam Penyelesaian (DPL) Kantor Wilayah / Cabang</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3 self-start md:self-auto">
+                <div class="bg-bni-darkTeal px-3 py-1.5 rounded-xl border border-teal-800 flex items-center gap-2">
+                    <span class="text-[10px] text-teal-300 uppercase font-bold tracking-wider">Role Akses:</span>
+                    <select id="role-selector" class="bg-slate-900 text-xs text-white font-bold py-1 px-2 rounded focus:outline-none focus:ring-1 focus:ring-bni-orange border-none cursor-pointer">
+                        <option value="NSD">Divisi NSD (Admin)</option>
+                        <option value="Wilayah">Kantor Wilayah (User)</option>
+                    </select>
+                </div>
+
+                <div class="bg-bni-darkTeal px-4 py-2 rounded-xl border border-teal-800">
+                    <div class="text-right">
+                        <span class="block text-[10px] text-teal-300 uppercase font-semibold">Tenggat Waktu (Rizky - ACC)</span>
+                        <span class="text-xs sm:text-sm text-amber-400 font-bold flex items-center gap-1">
+                            <i data-lucide="clock" class="w-4 h-4"></i> Selasa, 2 Juni 2026 (Segera Balas!)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-14">
+                <div class="flex space-x-1 sm:space-x-4 overflow-x-auto py-2">
+                    <button id="tab-btn-dashboard" onclick="App.switchTab('dashboard')" class="px-3 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 bg-bni-lightTeal text-bni-teal">
+                        Dashboard Ringkasan
+                    </button>
+                    <button id="tab-btn-workspace" onclick="App.switchTab('workspace')" class="px-3 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 flex items-center gap-2 text-slate-600 hover:text-bni-teal hover:bg-slate-50">
+                        Lembar Kerja Konfirmasi
+                        <span id="pending-count-badge" class="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">0</span>
+                    </button>
+                    <button id="tab-btn-report" onclick="App.switchTab('report')" class="px-3 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 flex items-center gap-2 text-slate-600 hover:text-bni-teal hover:bg-slate-50">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Draf Laporan Konfirmasi
+                    </button>
+                    <button id="tab-btn-instructions" onclick="App.switchTab('instructions')" class="px-3 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0 flex items-center gap-1.5 text-slate-600 hover:text-bni-teal hover:bg-slate-50">
+                        <i data-lucide="info" class="w-4 h-4"></i> Instruksi Surat NSD
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2 ml-4">
+                    <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+                    <button id="btn-nav-upload-csv" onclick="document.getElementById('csv-file-input').click()" class="hidden md:flex items-center gap-1.5 text-xs text-bni-teal border border-bni-teal hover:bg-teal-50 px-3 py-1.5 rounded-lg font-semibold transition-all">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i> Upload CSV Baru
+                    </button>
+                    <button onclick="App.handleExportCSV()" class="flex items-center gap-1.5 text-xs bg-bni-teal text-white hover:bg-bni-navy px-3 py-1.5 rounded-lg font-semibold shadow-sm transition-all">
+                        <i data-lucide="download" class="w-3.5 h-3.5"></i> Ekspor Hasil
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Grid Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <div id="role-alert-banner" class="bg-blue-50 border-l-4 border-blue-500 rounded-xl p-4 mb-6 shadow-sm flex items-center justify-between no-print">
+            <div class="flex gap-3">
+                <i data-lucide="user-check" class="w-5 h-5 text-blue-600 shrink-0"></i>
+                <div>
+                    <p class="text-blue-800 font-bold text-sm">Mode Otoritas Akses Aktif</p>
+                    <p id="role-alert-text" class="text-blue-700 text-xs mt-0.5">Saat ini Anda menggunakan hak akses penuh Divisi NSD (Admin).</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 1: DASHBOARD -->
+        <div id="tab-content-dashboard" class="space-y-6">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="w-full md:w-2/3">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-base font-bold text-slate-800">Progress Penyelesaian Konfirmasi Wilayah/Cabang</h3>
+                        <span id="progress-text" class="text-bni-teal font-bold text-lg">0% Selesai</span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                        <div id="progress-bar" class="bg-bni-teal h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p class="text-xs text-slate-500 mt-2 flex items-center gap-1">
+                        <i data-lucide="check" class="w-3.5 h-3.5 text-teal-600"></i>
+                        <span id="completion-text">Mencatat 0 dari 0 aset telah dikonfirmasi dan ditetapkan rencana tindak lanjutnya.</span>
+                    </p>
+                </div>
+                <div class="bg-bni-lightTeal p-4 rounded-xl border border-teal-100 flex items-center gap-3 w-full md:w-auto shrink-0 justify-center">
+                    <div class="p-2.5 bg-bni-teal rounded-lg text-white">
+                        <i data-lucide="file-text" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <span class="block text-[10px] text-teal-800 uppercase font-bold tracking-wider">Aset Belum Selesai</span>
+                        <span id="pending-items-count" class="text-xl font-extrabold text-bni-teal">0 Item</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                          <span class="text-xs text-slate-500 font-semibold block uppercase tracking-wider">Total Aset DPL Monitored</span>
+                          <span id="kpi-total-val" class="text-2xl font-extrabold text-slate-800 mt-1 block">Rp 0</span>
+                        </div>
+                        <div class="p-2.5 bg-slate-100 rounded-xl text-slate-600">
+                          <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span>Volume Data: <strong id="kpi-total-count">0</strong> Aset</span>
+                        <span class="bg-slate-100 text-slate-700 font-semibold px-2 py-0.5 rounded-full">Aktif</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                          <span class="text-xs text-slate-500 font-semibold block uppercase tracking-wider">DPL Bangunan Kritis (&gt;360 Hari)</span>
+                          <span id="kpi-building-crit-val" class="text-2xl font-extrabold text-red-600 mt-1 block">Rp 0</span>
+                        </div>
+                        <div class="p-2.5 bg-red-50 rounded-xl text-red-600">
+                          <i data-lucide="building-2" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span class="text-red-700 font-medium">Kritis: <strong id="kpi-building-crit-count">0</strong> Aset</span>
+                        <span class="bg-red-55 px-1.5 py-0.5 rounded bg-red-50 text-red-700 font-bold text-[10px]">Perlu Tindakan</span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col justify-between min-h-[140px]">
+                    <div class="flex justify-between items-start">
+                        <div>
+                          <span class="text-xs text-slate-500 font-semibold block uppercase tracking-wider">DPL Inventaris Kritis (&gt;180 Hari)</span>
+                          <span id="kpi-inventory-crit-val" class="text-2xl font-extrabold text-amber-600 mt-1 block">Rp 0</span>
+                        </div>
+                        <div class="p-2.5 bg-amber-50 rounded-xl text-amber-600">
+                          <i data-lucide="package" class="w-5 h-5"></i>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                        <span class="text-amber-700 font-medium">Kritis: <strong id="kpi-inventory-crit-count">0</strong> Aset</span>
+                        <span class="bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded text-[10px]">Perlu Tindakan</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div class="lg:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                    <h3 class="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="file-text" class="text-bni-teal w-5 h-5"></i>
+                        Panduan Identifikasi & Tindak Lanjut (Sesuai Surat ACC)
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div class="p-4 rounded-xl border border-teal-100 bg-teal-50/50 flex flex-col justify-between">
+                        <div>
+                          <span class="inline-block bg-bni-teal text-white text-[10px] px-2 py-0.5 rounded-full font-bold mb-2">PROYEK SELESAI (DONE)</span>
+                          <p class="text-xs text-slate-600 mt-1 font-medium leading-relaxed">Koordinasi langsung dengan Divisi PFA untuk mengubah Aset DPL menjadi Aset Tetap.</p>
+                        </div>
+                        <span class="text-[10px] text-teal-800 font-bold mt-3 block flex items-center gap-0.5">Tindakan: Modify Aset Tetap <i data-lucide="chevron-right" class="w-3 h-3"></i></span>
+                      </div>
+
+                      <div class="p-4 rounded-xl border border-amber-200 bg-amber-50/40 flex flex-col justify-between">
+                        <div>
+                          <span class="inline-block bg-amber-55 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold mb-2">PROYEK BATAL (CANCEL)</span>
+                          <p class="text-xs text-slate-600 mt-1 font-medium leading-relaxed">Harus segera diselesaikan administrasi pembatalannya dan dibebankan langsung ke Beban Operasional Kantor Wilayah/Cabang (Opex).</p>
+                        </div>
+                        <span class="text-[10px] text-amber-800 font-bold mt-3 block flex items-center gap-0.5">Tindakan: Bebankan Opex <i data-lucide="chevron-right" class="w-3 h-3"></i></span>
+                      </div>
+
+                      <div class="p-4 rounded-xl border border-blue-100 bg-blue-50/30 flex flex-col justify-between">
+                        <div>
+                          <span class="inline-block bg-blue-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold mb-2">MASIH BERJALAN (ON GOING)</span>
+                          <p class="text-xs text-slate-600 mt-1 font-medium leading-relaxed">Wajib mencantumkan timeline penyelesaian proyek secara mendetail sebagai bukti evaluasi.</p>
+                        </div>
+                        <span class="text-[10px] text-blue-800 font-bold mt-3 block flex items-center gap-0.5">Tindakan: Isi Timeline <i data-lucide="chevron-right" class="w-3 h-3"></i></span>
+                      </div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-sm border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute right-0 bottom-0 opacity-10">
+                      <i data-lucide="upload" class="w-32 h-32 text-white"></i>
+                    </div>
+                    <div class="z-10">
+                      <h3 class="text-base font-bold mb-2 flex items-center gap-2">
+                        <i data-lucide="upload" class="text-amber-500 w-5 h-5"></i> Input Data Wilayah Lain
+                      </h3>
+                      <p class="text-xs text-slate-300 leading-relaxed mb-4">
+                        Gunakan file CSV ekspor dari BNI (Aset DPL) untuk menganalisa, memonitor, dan mencetak laporan konfirmasi wilayah/cabang Anda secara otomatis.
+                      </p>
+                    </div>
+                    <div class="z-10 space-y-2">
+                      <button id="btn-sidebar-upload" onclick="document.getElementById('csv-file-input').click()" class="w-full bg-bni-teal hover:bg-bni-navy text-white font-bold py-2 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 shadow-md">
+                        <i data-lucide="upload" class="w-4 h-4"></i> Unggah File CSV Baru
+                      </button>
+                      <button id="btn-sidebar-restore" onclick="DataManager.restoreInitialData()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium py-1.5 px-4 rounded-xl text-[11px] transition-all">
+                        Gunakan Data Contoh Bawaan
+                      </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-base font-bold text-slate-800">Daftar Urgent: Aging Kritis Belum Dikonfirmasi</h3>
+                    <button onclick="App.activateUrgentFilters()" class="text-xs text-bni-teal font-bold hover:underline">
+                      Lihat Semua Aset Kritis &rarr;
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr class="bg-slate-50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-100">
+                          <th class="py-3 px-4">Kelas / No Aset</th>
+                          <th class="py-3 px-4">Jenis</th>
+                          <th class="py-3 px-4">Keterangan Aset DPL</th>
+                          <th class="py-3 px-4">Lokasi & Wilayah</th>
+                          <th class="py-3 px-4 text-right">Aging (Hari)</th>
+                          <th class="py-3 px-4 text-right">Harga Perolehan</th>
+                          <th class="py-3 px-4 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="quick-attention-tbody" class="divide-y divide-slate-100">
+                      </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: WORKSPACE -->
+        <div id="tab-content-workspace" class="space-y-6 hidden">
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                <h3 class="text-sm font-bold text-bni-teal mb-3.5 flex items-center gap-1.5 uppercase tracking-wide">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-amber-500"></i>
+                    Matriks Progress & Kendali per Wilayah (April 2026)
+                </h3>
+                <div id="regional-metrics-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4"></div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col gap-4">
+              <div class="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4">
+                <div class="relative flex-1">
+                  <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+                  <input type="text" id="search-input" oninput="App.handleSearchFilterChange()" placeholder="Cari berdasarkan Nomor Aset, Keterangan, Lokasi atau Vendor..." class="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-bni-teal/20 focus:border-bni-teal transition-all" />
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                    <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <select id="filter-region-select" onchange="App.handleSearchFilterChange()" class="bg-transparent text-xs font-semibold focus:outline-none text-slate-700 max-w-[160px]">
+                      <option value="ALL">Semua Wilayah</option>
+                    </select>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <select id="filter-jenis-select" onchange="App.handleSearchFilterChange()" class="bg-transparent text-xs font-semibold focus:outline-none text-slate-700">
+                      <option value="ALL">Semua Jenis Aset</option>
+                      <option value="Bangunan">Hanya Bangunan</option>
+                      <option value="Inventaris">Hanya Inventaris</option>
+                    </select>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                    <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <select id="filter-urgency-select" onchange="App.handleSearchFilterChange()" class="bg-transparent text-xs font-semibold focus:outline-none text-slate-700">
+                      <option value="ALL">Semua Aging</option>
+                      <option value="CRITICAL">Aging Kritis (Perlu Tindakan)</option>
+                      <option value="NORMAL">Aging Normal (Aman)</option>
+                    </select>
+                  </div>
+
+                  <div class="flex items-center gap-1.5 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-slate-400"></i>
+                    <select id="filter-status-select" onchange="App.handleSearchFilterChange()" class="bg-transparent text-xs font-semibold focus:outline-none text-slate-700">
+                      <option value="ALL">Semua Status</option>
+                      <option value="CONFIRMED">Selesai Dikonfirmasi</option>
+                      <option value="PENDING">Belum Dikonfirmasi</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div id="reset-filters-bar" class="hidden flex justify-end">
+                  <button onclick="App.resetAllFilters()" class="text-xs text-red-600 font-bold flex items-center gap-1 hover:underline">
+                    Reset Semua Filter
+                  </button>
+              </div>
+            </div>
+
+            <div id="bulk-actions-panel" class="hidden bg-teal-50 border border-teal-200 p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4 shadow-sm">
+                <div class="flex items-center gap-2 text-sm text-bni-teal font-medium">
+                  <span class="w-4 h-4 bg-teal-600 text-white rounded-full p-0.5 flex items-center justify-center text-[10px] font-bold">✓</span>
+                  Terpilih <strong id="selected-assets-count">0</strong> aset. Lakukan tindakan massal:
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="App.handleBulkUpdate('Done')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all">
+                    Mark as DONE (Modify to Aset Tetap)
+                  </button>
+                  <button onclick="App.handleBulkUpdate('On Going')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all">
+                    Mark as ON GOING (Monitor)
+                  </button>
+                  <button onclick="App.handleBulkUpdate('Cancel')" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg transition-all">
+                    Mark as CANCEL (Charge Opex)
+                  </button>
+                  <button onclick="App.clearBulkSelection()" class="text-slate-500 hover:text-slate-700 text-xs font-semibold px-3 py-1.5">
+                    Batal
+                  </button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                    <span id="table-results-label" class="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Daftar Kerja Monitoring (Ditemukan 0 Aset)
+                    </span>
+                    <span class="text-xs text-slate-400">Centang baris untuk melakukan update massal</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr class="bg-slate-100/50 text-slate-500 uppercase tracking-wider font-semibold border-b border-slate-200">
+                          <th class="py-3 px-4 text-center w-12">
+                            <input type="checkbox" id="select-all-checkbox" onchange="App.handleSelectAllToggle()" class="rounded text-bni-teal focus:ring-bni-teal">
+                          </th>
+                          <th class="py-3 px-4">Nomor Aset / NIB</th>
+                          <th class="py-3 px-4">Kelas & Jenis</th>
+                          <th class="py-3 px-4">Deskripsi Rincian Aset DPL</th>
+                          <th class="py-3 px-4">Wilayah & Lokasi Kerja</th>
+                          <th class="py-3 px-4 text-right">Aging / Range</th>
+                          <th class="py-3 px-4 text-right">Harga Perolehan</th>
+                          <th class="py-3 px-4">Status Konfirmasi</th>
+                          <th class="py-3 px-4 text-center">Aksi</th>
+                        </tr>
+                      </thead>
+                      <tbody id="ledger-table-tbody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONFIRMATION MODAL DRAWER -->
+        <div id="confirmation-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 flex flex-col">
+              <div class="p-6 border-b border-slate-100 bg-gradient-to-r from-bni-teal to-teal-700 text-white flex justify-between items-center">
+                <div>
+                  <span class="bg-amber-500 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full uppercase tracking-wider block w-max mb-1">
+                    Formulir Konfirmasi Aset DPL (Butir A - E)
+                  </span>
+                  <h3 id="modal-title" class="text-lg font-bold">Aset No. 921309</h3>
+                </div>
+                <button onclick="App.closeConfirmationModal()" class="text-white/80 hover:text-white font-bold text-2xl p-1 leading-none">&times;</button>
+              </div>
+
+              <div class="p-6 space-y-5">
+                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 text-xs grid grid-cols-2 gap-3">
+                  <div>
+                    <span class="text-slate-400 block">Keterangan Proyek</span>
+                    <span id="modal-desc-ket1" class="font-bold text-slate-800">-</span>
+                    <span id="modal-desc-ket2" class="block text-slate-505">-</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block">Harga Perolehan</span>
+                    <span id="modal-desc-harga" class="font-extrabold text-slate-800 text-sm">Rp 0</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block">Aging / Jenis</span>
+                    <span id="modal-desc-aging" class="font-bold text-slate-700">-</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-400 block">Lokasi & Wilayah Kantor</span>
+                    <span id="modal-desc-lokasi" class="font-semibold text-bni-teal flex items-center gap-0.5 mt-0.5">
+                      <i data-lucide="map-pin" class="w-3.5 h-3.5 shrink-0"></i> -
+                    </span>
+                  </div>
+                  <div class="col-span-2 border-t border-slate-100 pt-2">
+                    <span class="text-slate-400 block">Perusahaan Pembuat / Kontraktor</span>
+                    <span id="modal-desc-vendor" class="font-medium text-slate-700">-</span>
+                  </div>
+                </div>
+
+                <form id="modal-form" onsubmit="return App.saveModalConfirmation(event)" class="space-y-4">
+                  <input type="hidden" id="modal-asset-id">
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                      Status Proyek (Permintaan Butir B) <span class="text-red-500">*</span>
+                    </label>
+                    <select id="modal-status-select" required onchange="App.handleModalStatusChange(this.value)" class="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-bni-teal/20 focus:border-bni-teal font-semibold">
+                      <option value="">-- Pilih Status --</option>
+                      <option value="On Going">On Going (Masih Berjalan)</option>
+                      <option value="Cancel">Cancel (Batal / Drop)</option>
+                      <option value="Done">Done (Selesai Proyek)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                      Timeline Penyelesaian (Kewajiban Butir C - Khusus On Going)
+                    </label>
+                    <input type="text" id="modal-timeline-input" placeholder="Contoh: Selesai Juli 2026 atau Target COD Q3 2026" class="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-bni-teal/20 focus:border-bni-teal disabled:bg-slate-100 disabled:cursor-not-allowed" />
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                      Klasifikasi Akuntansi (Tujuan Butir A)
+                    </label>
+                    <select id="modal-accounting-select" class="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-bni-teal/20 focus:border-bni-teal font-semibold">
+                      <option value="Kapitalisasi Aset Tetap">Kapitalisasi Aset Tetap (Tetap Dikonversi ke Aktiva Tetap)</option>
+                      <option value="Beban Opex">Beban Operasional / Opex (Penyesuaian Biaya)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase mb-1.5">
+                      Rencana Tindak Lanjut & Koordinasi (Butir D & E)
+                    </label>
+                    <textarea id="modal-tindaklanjut-textarea" rows="3" placeholder="Langkah spesifik, koordinasi internal, atau nomor nota dinas pendukung..." class="w-full text-xs p-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-bni-teal/20 focus:border-bni-teal"></textarea>
+                  </div>
+
+                  <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="App.closeConfirmationModal()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2 px-4 rounded-xl text-xs transition-all">
+                      Tutup
+                    </button>
+                    <button type="submit" class="bg-bni-teal hover:bg-bni-navy text-white font-bold py-2 px-5 rounded-xl text-xs transition-all shadow-md">
+                      Simpan Konfirmasi Aset
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: DRAF LAPORAN TANGGAPAN -->
+        <div id="tab-content-report" class="space-y-6 hidden">
+            <div class="bg-slate-800 text-slate-200 p-5 rounded-2xl shadow-sm border border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4 no-print">
+              <div class="flex gap-3">
+                <i data-lucide="file-text" class="w-5 h-5 text-bni-orange shrink-0"></i>
+                <div>
+                  <h4 class="font-bold text-sm text-white">Draf Formal Laporan Tanggapan Surat No. NSD/5.21 3367</h4>
+                  <p class="text-xs text-slate-300 mt-0.5">Draf di bawah ini telah diformat secara formal sesuai format laporan perbankan BNI Wide. Setelah mengonfirmasi seluruh aset wilayah, Anda dapat langsung mencetak (Print) draf resmi ini.</p>
+                </div>
+              </div>
+              <div class="flex gap-2 shrink-0">
+                <button onclick="window.print()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition-all">
+                  <i data-lucide="printer" class="w-3.5 h-3.5"></i> Print Laporan Resmi
+                </button>
+              </div>
+            </div>
+
+            <div id="official-print-area" class="bg-white rounded-2xl shadow-md border border-slate-250 p-6 md:p-10 max-w-4xl mx-auto text-slate-900 font-serif leading-relaxed">
+              <div class="border-b-2 border-double border-slate-800 pb-4 mb-6 flex justify-between items-start font-sans">
+                <div>
+                  <h2 class="text-base font-extrabold tracking-widest text-bni-teal">PT. BANK NEGARA INDONESIA (PERSERO) Tbk</h2>
+                  <span class="text-[10px] text-slate-500 block font-semibold">KANTOR WILAYAH / DIVISI STRATEGIS DAERAH</span>
+                </div>
+                <div class="text-right text-xs text-slate-400 font-bold">
+                  <span>CONFIDENTIAL</span>
+                </div>
+              </div>
+
+              <div class="text-xs font-sans space-y-2 text-slate-800 mb-6 font-medium">
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="font-bold">Kepada</div>
+                  <div class="col-span-3">: Divisi Accounting (ACC) - up. Sdr. Rizky Indrawan</div>
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="font-bold">Dari</div>
+                  <div class="col-span-3">: Pimpinan Segenap Kantor Wilayah / Cabang BNI</div>
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="font-bold">Nomor Tanggapan</div>
+                  <div class="col-span-3">: NSD-CON/DPL/2026/001</div>
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="font-bold">Tanggal</div>
+                  <div class="col-span-3">: 02 JUNI 2026</div>
+                </div>
+                <div class="grid grid-cols-4 gap-2">
+                  <div class="font-bold">Perihal</div>
+                  <div class="col-span-3 font-bold text-slate-900 underline">: Konfirmasi Atas Aset Dalam Penyelesaian Bangunan dan Inventaris Posisi April 2026</div>
+                </div>
+              </div>
+
+              <div class="text-xs space-y-4 text-justify text-slate-800 font-sans">
+                <p>
+                  Menunjuk surat Divisi Network Strategy and Development nomor <strong>NSD/5.21 3367</strong> tanggal 02 Juni 2026 perihal pokok surat di atas, dengan ini kami sampaikan umpan balik (feedback) dan konfirmasi rincian progress pembukuan Aset Dalam Penyelesaian (Aset DPL) posisi 30 April 2026 sebagai berikut:
+                </p>
+                
+                <p>
+                  1. Kami telah melakukan evaluasi, analisa, dan identifikasi fisik maupun administratif atas seluruh proyek yang tercatat pada Aset DPL di lingkup kerja kami, khususnya aset-aset kritis dengan kriteria aging &gt; 360 hari untuk Bangunan dan aging &gt; 180 hari untuk Inventaris guna persiapan menghadapi agenda <strong>Limited Review Juni 2026</strong>.
+                </p>
+
+                <p>
+                  2. Berikut ini adalah tabel rekapitulasi status konfirmasi penyelesaian aset DPL di unit kerja kami:
+                </p>
+
+                <div class="py-2">
+                  <table class="w-full text-left text-[11px] border-collapse border border-slate-300 font-sans font-medium">
+                    <thead>
+                      <tr class="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+                        <th class="p-2 border border-slate-300">Kategori Status Proyek</th>
+                        <th class="p-2 border border-slate-300 text-center">Jumlah Aset</th>
+                        <th class="p-2 border border-slate-300 text-right">Total Nilai Perolehan</th>
+                        <th class="p-2 border border-slate-300">Rencana Tindak Lanjut Utama</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td class="p-2 border border-slate-300 font-semibold">Done (Selesai)</td>
+                        <td id="report-done-count" class="p-2 border border-slate-300 text-center">0</td>
+                        <td id="report-done-val" class="p-2 border border-slate-300 text-right">Rp 0</td>
+                        <td class="p-2 border border-slate-300 text-slate-600">Proses modify data DPL menjadi Aktiva Aset Tetap ke Divisi PFA.</td>
+                      </tr>
+                      <tr>
+                        <td class="p-2 border border-slate-300 font-semibold">On Going (Berjalan)</td>
+                        <td id="report-ongoing-count" class="p-2 border border-slate-300 text-center">0</td>
+                        <td id="report-ongoing-val" class="p-2 border border-slate-300 text-right">Rp 0</td>
+                        <td class="p-2 border border-slate-300 text-slate-600">Pemantauan progres penyelesaian fisik sesuai timeline terlampir.</td>
+                      </tr>
+                      <tr>
+                        <td class="p-2 border border-slate-300 font-semibold">Cancel (Batal)</td>
+                        <td id="report-cancel-count" class="p-2 border border-slate-300 text-center">0</td>
+                        <td id="report-cancel-val" class="p-2 border border-slate-300 text-right">Rp 0</td>
+                        <td class="p-2 border border-slate-300 text-slate-600">Pemberhentian proyek dan pembebanan langsung ke Beban Opex.</td>
+                      </tr>
+                      <tr class="bg-slate-50 font-bold border-t-2 border-slate-300 text-bni-teal">
+                        <td class="p-2 border border-slate-300">Total Dikonfirmasi</td>
+                        <td id="report-confirmed-count" class="p-2 border border-slate-300 text-center">0</td>
+                        <td id="report-confirmed-val" class="p-2 border border-slate-300 text-right">Rp 0</td>
+                        <td class="p-2 border border-slate-300"><span id="report-rate-badge">0% Selesai dari segenap target</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <p>
+                  3. Adapun rincian detail konfirmasi per aset untuk masing-masing kelas bangunan dan inventaris kami lampirkan pada bagian lampiran laporan ini.
+                </p>
+
+                <p>
+                  Demikian laporan konfirmasi progress ini kami sampaikan untuk dapat ditindaklanjuti pada kesempatan pertama. Atas perhatian dan kerjasamanya kami ucapkan terima kasih.
+                </p>
+
+                <div class="pt-6 flex justify-between items-center text-xs font-sans">
+                  <div class="text-slate-400">
+                    *Lampiran dicetak otomatis sistem DPL-Monitor
+                  </div>
+                  <div class="text-center">
+                    <p class="font-bold">Hormat Kami,</p>
+                    <p class="font-bold mt-12 text-slate-800">PIMPINAN KANTOR WILAYAH</p>
+                    <p class="text-[10px] text-slate-505">PT. Bank Negara Indonesia (Persero) Tbk.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="my-8 border-t-2 border-dashed border-slate-300 pt-8 font-sans">
+                <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 text-center">
+                  LAMPIRAN DETAIL: KONFIRMASI RINCIAN ASET DPL WILAYAH / CABANG
+                </h3>
+                <table class="w-full text-[9px] text-left border-collapse border border-slate-300">
+                  <thead>
+                    <tr class="bg-slate-100 font-bold text-slate-800 border-b border-slate-300 uppercase">
+                      <th class="p-1 border border-slate-300">Nomor Aset</th>
+                      <th class="p-1 border border-slate-300 text-center">Kelas</th>
+                      <th class="p-1 border border-slate-300">Uraian / Deskripsi Aset</th>
+                      <th class="p-1 border border-slate-300">Wilayah</th>
+                      <th class="p-1 border border-slate-300 text-right">Aging</th>
+                      <th class="p-1 border border-slate-300 text-right">Harga Perolehan</th>
+                      <th class="p-1 border border-slate-300">Status</th>
+                      <th class="p-1 border border-slate-300">Timeline / Tindak Lanjut</th>
+                      <th class="p-1 border border-slate-300">Akuntansi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="report-attachment-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+        </div>
+
+        <!-- TAB 4: INSTRUKSI SURAT -->
+        <div id="tab-content-instructions" class="space-y-6 hidden">
+            <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 max-w-4xl mx-auto">
+              <h3 class="text-lg font-bold text-bni-teal mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                <i data-lucide="file-text" class="text-amber-500 w-6 h-6"></i>
+                Detail Korespondensi Surat NSD/5.21 3367
+              </h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
+                <div class="space-y-4">
+                  <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <span class="block text-[10px] uppercase font-bold text-slate-400">Judul Surat Dinas</span>
+                    <span class="font-bold text-slate-800">Konfirmasi Atas Aset Dalam Penyelesaian Bangunan dan Inventaris April 2026</span>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-150">
+                      <span class="block text-[10px] uppercase font-bold text-slate-400">Nomor Surat</span>
+                      <span class="font-semibold text-slate-700 text-xs">NSD/5.21 3367</span>
+                    </div>
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-150">
+                      <span class="block text-[10px] uppercase font-bold text-slate-400">Tanggal Terbit</span>
+                      <span class="font-semibold text-slate-700 text-xs">02 Juni 2026</span>
+                    </div>
+                  </div>
+
+                  <div class="bg-red-50 p-4 rounded-xl border border-red-150 text-red-850">
+                    <span class="block text-[10px] uppercase font-bold text-red-700">Tenggat Waktu Konfirmasi</span>
+                    <span class="font-extrabold text-sm block">Selasa, 2 Juni 2026</span>
+                    <p class="text-xs mt-1">Diharapkan feedback atas konfirmasi status proyek dapat diterima Divisi ACC sesegera mungkin karena adanya agenda Limited Review Juni 2026.</p>
+                  </div>
+
+                  <div class="bg-teal-50 p-4 rounded-xl border border-teal-100">
+                    <span class="block text-[10px] uppercase font-bold text-teal-800">Kontak Person Pendukung (Divisi ACC)</span>
+                    <div class="space-y-1.5 mt-2 text-xs">
+                      <div class="flex items-center gap-2 text-slate-700">
+                        <i data-lucide="user" class="w-3.5 h-3.5 text-bni-teal"></i>
+                        <span><strong>Sdr. Rizky Indrawan</strong> (Staf Divisi ACC)</span>
+                      </div>
+                      <div class="flex items-center gap-2 text-slate-700">
+                        <i data-lucide="mail" class="w-3.5 h-3.5 text-bni-teal"></i>
+                        <span>rizky.indrawan@bni.co.id</span>
+                      </div>
+                      <div class="flex items-center gap-2 text-slate-700">
+                        <i data-lucide="phone" class="w-3.5 h-3.5 text-bni-teal"></i>
+                        <span>0813-3325-2546</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-4">
+                  <h4 class="font-bold text-slate-800 uppercase tracking-wider text-xs">
+                    Rincian Kriteria Penilaian Aset DPL
+                  </h4>
+                  
+                  <div class="space-y-3 text-xs text-slate-755">
+                    <div class="flex gap-2.5 items-start">
+                      <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong>Kriteria Aging Kritis Bangunan:</strong>
+                        <p class="text-slate-500 mt-0.5">DPL dengan Kelas <strong>0021</strong> atau berjenis Bangunan yang berumur <strong>&gt; 360 Hari</strong>.</p>
+                      </div>
+                    </div>
+
+                    <div class="flex gap-2.5 items-start">
+                      <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong>Kriteria Aging Kritis Inventaris:</strong>
+                        <p class="text-slate-500 mt-0.5">DPL dengan Kelas <strong>0029</strong> atau berjenis Inventaris (AC, Furniture, TI) yang berumur <strong>&gt; 180 Hari</strong>.</p>
+                      </div>
+                    </div>
+
+                    <div class="flex gap-2.5 items-start">
+                      <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong>Ppgs. Department Head:</strong>
+                        <p class="text-slate-505 mt-0.5">Divisi Network Strategy and Development: <strong>Decky Indrasetiadi</strong>.</p>
+                      </div>
+                    </div>
+
+                    <div class="flex gap-2.5 items-start">
+                      <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 shrink-0 mt-0.5"></i>
+                      <div>
+                        <strong>Tujuan Penilaian:</strong>
+                        <p class="text-slate-505 mt-0.5">Memastikan apakah proyek masih berlangsung (Kapitalisasi) atau batal (Opex Beban) guna menjaga ketepatan pencatatan laporan keuangan BNI.</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+    </main>
+
+    <footer class="bg-slate-900 text-slate-450 text-xs py-6 border-t border-slate-800 mt-auto no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400">
+          <div>
+            <p class="font-semibold text-bni-teal">Sistem Pendukung Keputusan Aset DPL Kantor Wilayah - BNI</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">&copy; 2026 PT. Bank Negara Indonesia (Persero) Tbk. All rights reserved.</p>
+          </div>
+          <div class="text-right text-[10px] text-slate-500">
+            <span>Aplikasi dikembangkan secara responsif guna mengakomodasi Keputusan Limited Review ACC.</span>
+          </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Modules -->
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
