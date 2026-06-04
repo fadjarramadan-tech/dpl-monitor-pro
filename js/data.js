@@ -1,11 +1,15 @@
 // ============================================
-// DATA MODULE - Initial Data & Data Management
+// DATA MODULE - SheetDB API Integration
+// Data tersimpan otomatis ke Google Spreadsheet via SheetDB
 // ============================================
 
 const DataManager = (function() {
     'use strict';
 
-    // Initial sample data
+    // Konfigurasi SheetDB
+    const SHEETDB_API_URL = 'https://sheetdb.io/api/v1/ie3ev71kg046h';
+    
+    // Initial sample data (fallback jika API gagal)
     const INITIAL_ASSETS = [
         {
             id: "1",
@@ -201,11 +205,178 @@ const DataManager = (function() {
         }
     ];
 
-    // Current assets state
-    let assets = Utils.deepClone(INITIAL_ASSETS);
+    // Current assets state (cache lokal)
+    let assets = [];
 
-    // Get all assets
-    function getAssets() {
+    // Status loading
+    let isLoading = false;
+    let lastError = null;
+
+    // ========== FUNGSI API SHEETDB ==========
+
+    /**
+     * Load data dari SheetDB
+     */
+    async function loadFromSheetDB() {
+        isLoading = true;
+        lastError = null;
+        
+        try {
+            const response = await fetch(SHEETDB_API_URL);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            
+            if (data && Array.isArray(data) && data.length > 0) {
+                // Konversi data dari SheetDB ke format asset
+                // Perhatikan: nama kolom di spreadsheet harus sesuai!
+                assets = data.map(row => normalizeAssetData(row));
+                console.log(`✅ Loaded ${assets.length} assets from SheetDB`);
+                return true;
+            } else {
+                // Jika spreadsheet kosong, gunakan data awal
+                console.log('SheetDB kosong, menggunakan data awal');
+                assets = Utils.deepClone(INITIAL_ASSETS);
+                await syncAllToSheetDB(); // Upload data awal ke SheetDB
+                return true;
+            }
+        } catch (error) {
+            console.error('Failed to load from SheetDB:', error);
+            lastError = error.message;
+            
+            // Fallback: gunakan data awal
+            assets = Utils.deepClone(INITIAL_ASSETS);
+            Utils.showToast('Gagal koneksi ke server. Data disimpan sementara di browser.', 'error');
+            return false;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    /**
+     * Normalisasi data dari SheetDB ke format asset internal
+     * SESUAIKAN nama kolom ini dengan spreadsheet Anda!
+     */
+    function normalizeAssetData(row) {
+        return {
+            id: row.id || row.ID || Utils.generateId(),
+            entity: row.entity || row.Entity || "",
+            unit: row.unit || row.Unit || "",
+            kelas: row.kelas || row.Kelas || "",
+            nomorAset: row.nomorAset || row.NomorAset || row["nomor aset"] || "",
+            nib: row.nib || row.NIB || "-",
+            tglPerolehan: row.tglPerolehan || row.TglPerolehan || row["tanggal perolehan"] || "",
+            aging: parseInt(row.aging || row.Aging || 0),
+            range: row.range || row.Range || "",
+            ket1: row.ket1 || row.Ket1 || row["keterangan 1"] || "",
+            ket2: row.ket2 || row.Ket2 || row["keterangan 2"] || "",
+            ket3: row.ket3 || row.Ket3 || row["keterangan 3"] || "",
+            lokasi: row.lokasi || row.Lokasi || "",
+            wilayah: row.wilayah || row.Wilayah || "Wilayah Kerja",
+            hargaPerolehan: parseFloat(row.hargaPerolehan || row.HargaPerolehan || row["harga perolehan"] || 0),
+            perusahaan: row.perusahaan || row.Perusahaan || "",
+            jenisAset: row.jenisAset || row.JenisAset || row["jenis aset"] || "Inventaris",
+            statusProyek: row.statusProyek || row.StatusProyek || row["status proyek"] || "",
+            timeline: row.timeline || row.Timeline || "",
+            kategoriAkuntansi: row.kategoriAkuntansi || row.KategoriAkuntansi || row["kategori akuntansi"] || "",
+            keteranganTindakLanjut: row.keteranganTindakLanjut || row.KeteranganTindakLanjut || row["keterangan tindak lanjut"] || "",
+            isConfirmed: row.isConfirmed === true || row.isConfirmed === "true" || row.IsConfirmed === true || false
+        };
+    }
+
+    /**
+     * Sinkronkan SELURUH data ke SheetDB (replace)
+     */
+    async function syncAllToSheetDB() {
+        try {
+            // SheetDB menggunakan method POST untuk menulis data
+            // Perhatikan: Anda mungkin perlu API key jika sheet diproteksi
+            const response = await fetch(SHEETDB_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(assets)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            console.log('✅ All data synced to SheetDB');
+            return true;
+        } catch (error) {
+            console.error('Failed to sync to SheetDB:', error);
+            Utils.showToast('Gagal menyimpan ke spreadsheet! Periksa koneksi.', 'error');
+            return false;
+        }
+    }
+
+    /**
+     * Update single asset di SheetDB (berdasarkan ID)
+     * SheetDB mendukung PATCH berdasarkan query parameter
+     */
+    async function updateAssetInSheetDB(id, updatedAsset) {
+        try {
+            // Method PATCH dengan query ?id=xxx
+            const url = `${SHEETDB_API_URL}/id/${id}`;
+            const response = await fetch(url, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(updatedAsset)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ Asset ${id} updated in SheetDB`);
+            return true;
+        } catch (error) {
+            console.error(`Failed to update asset ${id}:`, error);
+            // Fallback: sync all data
+            await syncAllToSheetDB();
+            return false;
+        }
+    }
+
+    /**
+     * Tambah asset baru ke SheetDB
+     */
+    async function addAssetToSheetDB(newAsset) {
+        try {
+            const response = await fetch(SHEETDB_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newAsset)
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            console.log(`✅ New asset added to SheetDB`);
+            return true;
+        } catch (error) {
+            console.error('Failed to add asset:', error);
+            return false;
+        }
+    }
+
+    // ========== FUNGSI PUBLIC (Sama seperti sebelumnya, tapi dengan sync ke SheetDB) ==========
+
+    // Get all assets (load from SheetDB if needed)
+    async function getAssets() {
+        if (assets.length === 0) {
+            await loadFromSheetDB();
+        }
         return assets;
     }
 
@@ -214,37 +385,71 @@ const DataManager = (function() {
         return assets.find(a => a.id === id);
     }
 
-    // Update asset
-    function updateAsset(id, updates) {
+    // Update asset (lokal + sync ke SheetDB)
+    async function updateAsset(id, updates) {
+        // Update lokal
+        let updatedAsset = null;
         assets = assets.map(asset => {
             if (asset.id === id) {
-                return { ...asset, ...updates, isConfirmed: true };
+                updatedAsset = { ...asset, ...updates, isConfirmed: true };
+                return updatedAsset;
             }
             return asset;
         });
-        return getAssetById(id);
+        
+        // Sinkronkan ke SheetDB
+        if (updatedAsset) {
+            await updateAssetInSheetDB(id, updatedAsset);
+            Utils.showToast('Konfirmasi aset berhasil disimpan!', 'success');
+        }
+        
+        // Trigger refresh UI
+        if (typeof App !== 'undefined' && App.refreshAppUI) {
+            App.refreshAppUI();
+        }
+        
+        return updatedAsset;
     }
 
     // Bulk update assets
-    function bulkUpdate(ids, updates) {
+    async function bulkUpdate(ids, updates) {
+        // Update lokal
+        const updatedAssets = [];
         assets = assets.map(asset => {
             if (ids.includes(asset.id)) {
-                return { ...asset, ...updates, isConfirmed: true };
+                const updated = { ...asset, ...updates, isConfirmed: true };
+                updatedAssets.push(updated);
+                return updated;
             }
             return asset;
         });
+        
+        // Sinkronkan seluruh data ke SheetDB (lebih efisien daripada update satu per satu)
+        await syncAllToSheetDB();
+        Utils.showToast(`Berhasil memperbarui ${updatedAssets.length} aset!`, 'success');
+        
+        if (typeof App !== 'undefined' && App.refreshAppUI) {
+            App.refreshAppUI();
+        }
     }
 
     // Set assets (for CSV import)
-    function setAssets(newAssets) {
+    async function setAssets(newAssets) {
         assets = newAssets;
+        await syncAllToSheetDB();
+        Utils.showToast(`Berhasil mengunggah ${assets.length} aset ke spreadsheet!`, 'success');
+        
+        if (typeof App !== 'undefined' && App.refreshAppUI) {
+            App.refreshAppUI();
+        }
     }
 
     // Restore initial data
-    function restoreInitialData() {
-        if (confirm("Ingin merestore contoh data bawaan?")) {
+    async function restoreInitialData() {
+        if (confirm("Ingin merestore contoh data bawaan? Data di spreadsheet akan ditimpa!")) {
             assets = Utils.deepClone(INITIAL_ASSETS);
-            Utils.showToast("Kembali ke data contoh bawaan.");
+            await syncAllToSheetDB();
+            Utils.showToast("Kembali ke data contoh bawaan dan tersimpan di spreadsheet.");
             if (typeof App !== 'undefined' && App.refreshAppUI) {
                 App.refreshAppUI();
             }
@@ -260,6 +465,26 @@ const DataManager = (function() {
     function getUniqueTypes() {
         return [...new Set(assets.map(a => a.jenisAset))].sort();
     }
+    
+    // Get loading status
+    function isLoadingData() {
+        return isLoading;
+    }
+    
+    // Get last error
+    function getLastError() {
+        return lastError;
+    }
+    
+    // Manual sync
+    async function manualSync() {
+        Utils.showToast('Menyinkronkan data...', 'success');
+        await syncAllToSheetDB();
+        await loadFromSheetDB();
+        if (typeof App !== 'undefined' && App.refreshAppUI) {
+            App.refreshAppUI();
+        }
+    }
 
     // Public API
     return {
@@ -271,6 +496,9 @@ const DataManager = (function() {
         restoreInitialData,
         getUniqueRegions,
         getUniqueTypes,
+        isLoadingData,
+        getLastError,
+        manualSync,
         INITIAL_ASSETS
     };
 })();
