@@ -564,7 +564,19 @@ const DataManager = (function() {
     // getUniqueTypes, manualSync, isLoadingData)
 
     // ... (lanjutkan dengan fungsi-fungsi API yang sama seperti sebelumnya)
-    
+    // Tambahkan ini di atas return
+function getAssetById(id) {
+    return assets.find(a => a.id == id);
+}
+
+function updateAsset(id, updates) {
+    const index = assets.findIndex(a => a.id == id);
+    if (index !== -1) {
+        assets[index] = { ...assets[index], ...updates };
+        return true;
+    }
+    return false;
+}
     return {
         getAssets,
         getAssetById,
