@@ -579,9 +579,9 @@ const DataManager = (function() {
         INITIAL_ASSETS
     };
 })();
-text
-Update: Import 467 aset dari CSV Laporan Konfirmasi Aset DPL April 2026
 
-- Total 467 aset dari 18 wilayah (W01 s/d W18)
-- Nama wilayah disesuaikan: Medan, Padang, Palembang, Bandung, Semarang, Surabaya, Makassar, Denpasar, Banjarmasin, Jakarta Senayan, Manado, Jakarta Kota, Jakarta BSD, Jakarta Kemayoran, Papua, Yogyakarta, Malang
-- Semua data siap untuk dikonfirmasi via SheetDB
+//Update: Import 467 aset dari CSV Laporan Konfirmasi Aset DPL April 2026
+
+//- Total 467 aset dari 18 wilayah (W01 s/d W18)
+//- Nama wilayah disesuaikan: Medan, Padang, Palembang, Bandung, Semarang, Surabaya, Makassar, Denpasar, Banjarmasin, Jakarta Senayan, Manado, Jakarta Kota, Jakarta BSD, Jakarta Kemayoran, Papua, Yogyakarta, Malang
+//- Semua data siap untuk dikonfirmasi via SheetDB
