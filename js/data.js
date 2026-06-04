@@ -1,12 +1,6 @@
 // ============================================
 // DATA MODULE - Initial Data & Data Management
 // ============================================
-// ✅ Cegah deklarasi ganda
-if (typeof window.DataManager !== 'undefined') {
-    console.warn('DataManager already exists, skipping re-declaration');
-} else {
-    window.DataManager = (function() {
-        'use strict';
         
 const DataManager = (function() {
     'use strict';
