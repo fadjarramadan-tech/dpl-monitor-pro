@@ -365,47 +365,88 @@ const DataManager = (function() {
 
     // Update asset (sync with API)
     async function updateAsset(id, updates) {
-        const index = assets.findIndex(a => a.id === id);
-        if (index !== -1) {
-            const updatedAsset = { ...assets[index], ...updates, isConfirmed: true };
-            assets[index] = updatedAsset;
-            
-            // Save to API (async, tidak blocking UI)
-            saveAssetToAPI(updatedAsset).then(success => {
-                if (!success) {
-                    console.warn(`Failed to sync asset ${id} to server`);
-                }
-            });
-            
+    let updatedAsset = null;
+    
+    // Update lokal
+    assets = assets.map(asset => {
+        if (asset.id === id) {
+            updatedAsset = { ...asset, ...updates, isConfirmed: true };
             return updatedAsset;
+        }
+        return asset;
+    });
+    
+    // 🚀 SINKRONKAN KE SHEETDB - METHOD PATCH untuk update satu baris
+    if (updatedAsset) {
+        try {
+            // Coba cari row berdasarkan id di SheetDB
+            const searchResponse = await fetch(`${SHEETDB_API_URL}/search?id=${id}`);
+            const searchResult = await searchResponse.json();
+            
+            if (searchResult.length > 0) {
+                // Update existing row
+                await fetch(`${SHEETDB_API_URL}/id/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedAsset)
+                });
+            } else {
+                // Jika belum ada, tambahkan baru
+                await fetch(SHEETDB_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedAsset)
+                });
+            }
+            Utils.showToast('Konfirmasi aset berhasil disimpan ke spreadsheet!', 'success');
+        } catch (error) {
+            console.error('Failed to update SheetDB:', error);
+            Utils.showToast('Gagal menyimpan ke spreadsheet, data disimpan lokal', 'error');
+        }
+    }
+    
+    if (typeof App !== 'undefined' && App.refreshAppUI) {
+        App.refreshAppUI();
+    }
+    
+    return updatedAsset;
+}
         }
         return null;
     }
 
     // Bulk update assets (sync with API)
     async function bulkUpdate(ids, updates) {
-        const updatedAssets = [];
-        assets = assets.map(asset => {
-            if (ids.includes(asset.id)) {
-                const updated = { ...asset, ...updates, isConfirmed: true };
-                updatedAssets.push(updated);
-                return updated;
-            }
-            return asset;
-        });
-        
-        // Save all changes to API (async)
-        if (updatedAssets.length > 0) {
-            // Untuk bulk update, kita update setiap aset yang berubah
-            const promises = updatedAssets.map(asset => saveAssetToAPI(asset));
-            const results = await Promise.all(promises);
-            const allSuccess = results.every(r => r === true);
-            
-            if (!allSuccess) {
-                Utils.showToast("Beberapa perubahan gagal disimpan ke server");
-            }
+    const updatedAssets = [];
+    
+    assets = assets.map(asset => {
+        if (ids.includes(asset.id)) {
+            const updated = { ...asset, ...updates, isConfirmed: true };
+            updatedAssets.push(updated);
+            return updated;
+        }
+        return asset;
+    });
+    
+    // Sinkronkan ke SheetDB untuk setiap aset yang diupdate
+    for (const asset of updatedAssets) {
+        try {
+            await fetch(`${SHEETDB_API_URL}/id/${asset.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(asset)
+            });
+        } catch (error) {
+            console.error(`Failed to update asset ${asset.id}:`, error);
         }
     }
+    
+    Utils.showToast(`Berhasil memperbarui ${updatedAssets.length} aset ke spreadsheet!`, 'success');
+    
+    if (typeof App !== 'undefined' && App.refreshAppUI) {
+        App.refreshAppUI();
+    }
+}
 
     // Set assets (for CSV import) - also sync to API
     async function setAssets(newAssets) {
