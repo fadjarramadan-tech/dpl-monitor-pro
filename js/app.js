@@ -2,7 +2,13 @@
 // DATA MODULE - SheetDB API Integration
 // Data otomatis tersimpan ke Google Spreadsheet via SheetDB
 // ============================================
-
+// ✅ Cegah deklarasi ganda
+if (typeof window.DataManager !== 'undefined') {
+    console.warn('DataManager already exists, skipping re-declaration');
+} else {
+    window.DataManager = (function() {
+        'use strict';
+        
 const DataManager = (function() {
     'use strict';
 
